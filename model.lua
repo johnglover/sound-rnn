@@ -69,7 +69,7 @@ function lstm(input_size, rnn_size, n, dropout)
     return nn.gModule(inputs, outputs)
 end
 
-function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length, batch_size)
+function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length, batch_size, gpu_id)
     local mdn_size = (2 * mdn_components * input_size) + mdn_components
 
     -- define model prototypes for 1 timestep
@@ -77,6 +77,15 @@ function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length,
     protos.lstm = lstm(input_size, rnn_size, num_layers)
     protos.linear_out = nn.Linear(rnn_size, mdn_size)
     protos.criterion = nn.MDNCriterion(mdn_components)
+    
+    -- ship protos to GPU if needed
+    if gpu_id >= 0 then
+       print('Shipping model to GPU')
+       for k, v in pairs(protos) do 
+          print('Shipping ' .. k)
+          v:cuda()
+       end
+    end
 
     -- combine parameters into one flattened parameters tensor
     local params, grad_params = model_utils.combine_all_parameters(protos.lstm, protos.linear_out)
@@ -95,8 +104,7 @@ function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length,
     end
 
     print(string.format('creating model (%d parameters)', params:size(1)))
-
-    -- make clones (after flattening, as that reallocates memory)
+        -- make clones (after flattening, as that reallocates memory)
     local clones = {}
     for name, proto in pairs(protos) do
         print('cloning ' .. name)
@@ -112,9 +120,11 @@ function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length,
     new_model.initstate = {}
     new_model.dfinalstate = {}
     for i = 1, num_layers do
-        table.insert(new_model.initstate, torch.zeros(batch_size, rnn_size)) -- c
-        table.insert(new_model.initstate, torch.zeros(batch_size, rnn_size)) -- h
-        table.insert(new_model.dfinalstate, torch.zeros(batch_size, rnn_size)) -- c
+        local h_init = torch.zeros(batch_size, rnn_size)
+        if gpu_id >= 0 then h_init = h_init:cuda() end
+        table.insert(new_model.initstate, h_init) -- c
+        table.insert(new_model.initstate, h_init) -- h
+        table.insert(new_model.dfinalstate, h_init) -- c
     end
 
     return new_model
