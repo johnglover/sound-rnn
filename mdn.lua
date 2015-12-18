@@ -11,6 +11,8 @@ local nn = require 'nn'
 require 'nngraph'
 local rk = require 'randomkit'
 
+local eps = 1e-12
+
 local MDN, Parent = torch.class('nn.MDNCriterion', 'nn.Criterion')
 
 local function num_dims(self, input)
@@ -27,7 +29,8 @@ local function get_params(self, input)
     local Nc = self.num_components
 
     -- first num_components values are mixture weights
-    local weights = torch.Tensor(x:size(1), Nc):copy(x[{{}, {1, Nc}}])
+    local weights = x.new(x:size(1), Nc)
+    weights:copy(x[{{}, {1, Nc}}])
     weights:exp():cdiv(weights:sum(2):expandAs(weights))
 
     -- next (num_components * num_vars) values are means
@@ -36,7 +39,8 @@ local function get_params(self, input)
         :view(x:size(1), dims, Nc)
 
     -- remaining (num_components * num_vars) values are the variances
-    local vars = torch.Tensor(x:size(1), dims, Nc):copy(
+    vars = x.new(x:size(1), dims, Nc)
+    vars:copy(
         x[{{}, {x:size(2) - (Nc * dims) + 1, x:size(2)}}]
     ):exp()
 
@@ -77,8 +81,16 @@ function MDN:__init(num_components)
     Parent.__init(self)
     self.num_components = num_components
     self.input_buffer = torch.Tensor()
-    self.grad_input = torch.Tensor()
+    self.gradInput = torch.Tensor()
     self.sample_buffer = torch.Tensor()
+end
+
+function MDN:cuda()
+    print('Shipping MDN to GPU')
+    Parent.cuda(self)
+    self.input_buffer = self.input_buffer:cuda()
+    self.gradInput = self.gradInput:cuda()
+    self.sample_buffer = self.sample_buffer:cuda()
 end
 
 function MDN:updateOutput(input, target)
@@ -89,7 +101,7 @@ function MDN:updateOutput(input, target)
     local weights, means, vars = get_params(self, input)
     local probs = pdf(y, means, vars, weights, dims)
 
-    return -math.log(probs:sum())
+    return -math.log(probs:sum() + eps)
 end
 
 function MDN:updateGradInput(input, target)
