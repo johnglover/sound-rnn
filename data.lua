@@ -27,7 +27,7 @@ function data.select_frame(frames, num_partials, randomise)
 end
 
 function data.preprocess(audio, params)
-    local data = {}
+    local processed = {}
     local frames = pv.pva(audio, params.fft_size, params.fft_size / 4, params.sample_rate)
 
     print('preparing audio data')
@@ -50,7 +50,7 @@ function data.preprocess(audio, params)
     params.input_size = Np
 
     -- store values that can be used to initialise the model when generating sequences
-    params.initial_frame = torch.Tensor(Np):copy((frames[5]:view(N, -1)[{{1, Np}}]))
+    params.initial_frame = data.select_frame(frames, params.num_partials)
     local deltas = rotate(frames):add(-frames)
 
     local amps = deltas:select(3, 1)[{{}, {1, params.num_partials}}]
@@ -70,14 +70,14 @@ function data.preprocess(audio, params)
     end
 
     local y = rotate(x)
-    data.x = x:view(params.batch_size, frames:size(1) / params.batch_size, Np)
-              :split(params.seq_length, 2)
-    data.y = y:view(params.batch_size, frames:size(1) / params.batch_size, Np)
-              :split(params.seq_length, 2)
-    data.num_batches = #data.x
+    processed.x = x:view(params.batch_size, frames:size(1) / params.batch_size, Np)
+                   :split(params.seq_length, 2)
+    processed.y = y:view(params.batch_size, frames:size(1) / params.batch_size, Np)
+                   :split(params.seq_length, 2)
+    processed.num_batches = #processed.x
 
     collectgarbage()
-    return data
+    return processed
 end
 
 function data.postprocess(input, params, prev_frame)

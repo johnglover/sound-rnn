@@ -77,11 +77,11 @@ function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length,
     protos.lstm = lstm(input_size, rnn_size, num_layers)
     protos.linear_out = nn.Linear(rnn_size, mdn_size)
     protos.criterion = nn.MDNCriterion(mdn_components)
-    
+
     -- ship protos to GPU if needed
     if gpu_id >= 0 then
        print('Shipping model to GPU')
-       for k, v in pairs(protos) do 
+       for k, v in pairs(protos) do
           print('Shipping ' .. k)
           v:cuda()
        end
@@ -104,7 +104,7 @@ function model.new(input_size, rnn_size, num_layers, mdn_components, seq_length,
     end
 
     print(string.format('creating model (%d parameters)', params:size(1)))
-        -- make clones (after flattening, as that reallocates memory)
+    -- make clones (after flattening, as that reallocates memory)
     local clones = {}
     for name, proto in pairs(protos) do
         print('cloning ' .. name)
