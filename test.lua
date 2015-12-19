@@ -104,6 +104,7 @@ function test_suite.test_model()
     local mdn_components = 5
     local seq_length = 1
     local batch_size = 1
+    local gpu_id = -1
 
     local m = model.new(
         input_size,
@@ -111,7 +112,8 @@ function test_suite.test_model()
         num_layers,
         mdn_components,
         seq_length,
-        batch_size
+        batch_size,
+        gpu_id
     )
     local input = torch.rand(batch_size, input_size)
     local target = torch.rand(batch_size, input_size)
