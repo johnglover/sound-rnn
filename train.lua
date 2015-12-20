@@ -123,9 +123,9 @@ end
 -- optimization
 print('starting optimisation')
 local losses = {}
-local optim_state = {learningRate = 0.001, alpha = 0.95}
+local optim_state = {learningRate = 0.001}
 for i = 1, params.max_epochs * input.num_batches do
-    local _, loss = optim.rmsprop(feval, mod.params, optim_state)
+    local _, loss = optim.adagrad(feval, mod.params, optim_state)
 
     losses[#losses + 1] = loss[1]
 
