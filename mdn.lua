@@ -11,9 +11,9 @@ local nn = require 'nn'
 require 'nngraph'
 local rk = require 'randomkit'
 
-local eps = 1e-12
-
 local MDN, Parent = torch.class('nn.MDNCriterion', 'nn.Criterion')
+
+local eps = 1e-12
 
 local function num_dims(self, input)
     if input:dim() ~= 2 then
@@ -42,7 +42,7 @@ local function get_params(self, input)
     vars = x.new(x:size(1), dims, Nc)
     vars:copy(
         x[{{}, {x:size(2) - (Nc * dims) + 1, x:size(2)}}]
-    ):exp()
+    ):exp():add(eps)
 
     return weights, means, vars
 end
