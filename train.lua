@@ -27,6 +27,7 @@ cmd:option('-seed', 123, 'torch manual random number generator seed')
 cmd:option('-learning_rate_decay', 0.97, 'learning rate decay')
 cmd:option('-num_threads', 1, 'number of CPU threads to use')
 cmd:option('-gpu_id', -1, 'ID of the GPU to use (-1 for CPU)')
+cmd:option('-multisave', 0, 'If greater than 0, saves a new model file every X steps')
 local params = cmd:parse(arg)
 
 torch.manualSeed(params.seed)
@@ -48,6 +49,7 @@ if params.gpu_id >= 0 then
         params.gpu_id = -1 -- overwrite user setting
     end
 end
+
 
 local raw_audio = data.load_file(params.audio)
 local input = data.preprocess(raw_audio, params)
@@ -128,6 +130,7 @@ for i = 1, params.max_epochs * input.num_batches do
     local _, loss = optim.adagrad(feval, mod.params, optim_state)
 
     losses[#losses + 1] = loss[1]
+if params.multisave == 0 then
 
     if i % params.save_every == 0 then
         torch.save(params.model_file, {
@@ -139,6 +142,19 @@ for i = 1, params.max_epochs * input.num_batches do
         collectgarbage()
     end
 
+  else
+    if i % params.multisave == 0 then
+      torch.save(params.model_file:sub(1, -4) .. "_" .. i .. ".t7", {
+        model = mod,
+        input = input,
+        params = params,
+        losses = losses
+
+    })
+end
+
+
+
     if i % params.print_every == 0 then
         print(string.format(
             "iteration %4d, loss = %6.8f, gradnorm = %6.3e", i, loss[1], mod.grad_params:norm() / mod.params:norm()
@@ -149,4 +165,5 @@ for i = 1, params.max_epochs * input.num_batches do
         optim_state.learningRate = optim_state.learningRate * params.learning_rate_decay -- decay it
         print(string.format('learning rate = %.8f', optim_state.learningRate))
     end
+end
 end
